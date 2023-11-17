@@ -18,8 +18,9 @@ trainTestSplit <- function(data = NULL,
                            target = NULL,
                            prop,
                            seed = "4814") {
-  set.seed(seed = as.numeric(seed))
+  set.seed(seed = as.numeric(seed)) #난수를 4814개 생성 > 데이터셋 개수가 엄청 많진 않은듯
   dataSplit <- rsample::initial_split(data, strata = tidyselect::all_of(target), prop = as.numeric(prop))
+  #initial_split 내부에 mc_cv 교차검증 함수가 선행 > 25번의 교차 검증을 진행 > 그중 1번째 샘플링을 이용
   train <- rsample::training(dataSplit)
   test <- rsample::testing(dataSplit)
 
