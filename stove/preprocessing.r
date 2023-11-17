@@ -13,6 +13,7 @@
 #'
 #' @export
 
+#함수 정의
 trainTestSplit <- function(data = NULL,
                            target = NULL,
                            prop,
