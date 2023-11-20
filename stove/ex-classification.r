@@ -21,9 +21,13 @@ head(cleaned_data)
 #STK : 뇌혈관질환 진료여부 유1 무0
 cleaned_data <- cleaned_data %>%
     mutate_at(vars(SEX, ANE, IHD, STK), factor) %>%
+    #factor 함수로 변수를 범주화
     mutate(TG = ifelse(TG < 150, 0, 1)) %>%
+    #TG 값을 2분화
     mutate_at(vars(TG), factor) %>%
+    #TG를 범주화
     group_by(TG) %>%
+    #TG의 갑 별로 그룹화 > summary 함수에서 그룹화된 결과 확인 가능
     sample_n(1000)
 
 head(cleaned_data)
