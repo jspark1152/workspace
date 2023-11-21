@@ -59,15 +59,19 @@ prepForCV <- function(data = NULL,
   # one-hot encoding
   result <- recipes::recipe(eval(parse(text = formula)), data = data) %>%
     recipes::step_dummy(recipes::all_nominal_predictors())
+    #명목형 변수를 원본 데이터의 수준에 해당하는 이항으로 변환
 
   # Imputation
   if (imputation == TRUE) {
     if (!is.null(nominalImputationType)) {
       cmd <- paste0("result <- result %>% recipes::step_impute_", nominalImputationType, "(recipes::all_nominal_predictors())")
+      #명목형 변수의 결측값을 해당 변수의 트레이닝 세트의 mode로 대체
+      #mode : 데이터 분포에서 관측치가 높은 부분 ex) 정규분포에서는 평균 = mode
       eval(parse(text = cmd))
     }
     if (!is.null(numericImputationType)) {
       cmd <- paste0("result <- result %>% recipes::step_impute_", numericImputationType, "(recipes::all_numeric_predictors())")
+      #수치형 변수의 결측값을 해당 변수의 트레이닝 세트의 평균으로 대체
       eval(parse(text = cmd))
     }
   }
@@ -76,6 +80,7 @@ prepForCV <- function(data = NULL,
   if (normalization == TRUE) {
     if (!is.null(normalizationType)) {
       cmd <- paste0("result <- result %>% recipes::step_", normalizationType, "(recipes::all_numeric_predictors())")
+      #수치형 데이터를 사전 정의된 값 범위 내에 있도록 정규화
       eval(parse(text = cmd))
     }
   }
