@@ -22,10 +22,10 @@ bayesOptCV <- function(rec = NULL,
                        gridNum = NULL,
                        iter = NULL,
                        seed = NULL) {
-  set.seed(seed = as.numeric(seed))
+  set.seed(seed = as.numeric(seed)) #난수 생성을 위한 seed 값 설정
   tunedWorkflow <- workflows::workflow() %>%
-    workflows::add_recipe(rec) %>% #Workflow에 전처리 Recipe와 Model 정보 입력
-    workflows::add_model(model)
+    workflows::add_recipe(rec) %>% #Workflow에 전처리 Recipe와
+    workflows::add_model(model) #Model 정보 추가
 
   folds <- rsample::vfold_cv(trainingData, v = as.numeric(v), strata = rec$var_info$variable[rec$var_info$role == "outcome"])
   #층화 표본 추출하는 기준을 Target 변수로 지정
