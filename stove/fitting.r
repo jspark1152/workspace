@@ -31,6 +31,7 @@ bayesOptCV <- function(rec = NULL,
   #층화 표본 추출하는 기준을 Target 변수로 지정
 
   initial <- ifelse(model$engine == "kknn", gridNum, length(model$args) * gridNum)
+  #최적화 대상인 매개변수의 개수보다 많은 것이 좋음
 
   if (quo_name(model$args$mtry) == "tune()") {
     param <- tunedWorkflow %>%
@@ -41,11 +42,14 @@ bayesOptCV <- function(rec = NULL,
     result <-
       tunedWorkflow %>%
       tune::tune_bayes(folds, initial = initial, iter = iter, param_info = param)
+      #initial 초기 결과셋으로 최적화 대상인 매개변수들의 개수보다 많은 것이 좋음
+      #param_info 매개변수 범위를 정의
   } else {
     set.seed(seed = as.numeric(seed))
     result <-
       tunedWorkflow %>%
       tune::tune_bayes(folds, initial = initial, iter = iter)
+      #iter 최대 반복 횟수
   }
 
   return(list(tunedWorkflow = tunedWorkflow, result = result))
@@ -76,7 +80,8 @@ fitBestModel <- function(optResult,
                          formula,
                          trainingData,
                          splitedData,
-                         modelName) {
+                         modelName) 
+                         {
   bestParams <- tune::select_best(optResult[[2]], metric)
   finalSpec <- tune::finalize_model(model, bestParams)
 

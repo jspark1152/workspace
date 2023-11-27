@@ -72,6 +72,9 @@ initial
 
 iter <- 10
 
+model$args
+quo_name(model$args$mtry)
+
 if (quo_name(model$args$mtry) == "tune()") {
     param <- tunedWorkflow %>%
       hardhat::extract_parameter_set_dials() %>%
@@ -88,6 +91,8 @@ if (quo_name(model$args$mtry) == "tune()") {
       tune::tune_bayes(folds, initial = initial, iter = iter)
   }
 
+
+list(tunedWorkflow = tunedWorkflow, result = result)
 result
 summary(result)
 head(result)
@@ -106,3 +111,8 @@ bestParams[[2]]
 bestParams[[3]]
 finalSpec <- tune::finalize_model(model, bestParams)
 finalSpec
+
+finalModel <- finalSpec %>% fit(eval(parse(text = formula)), data_train)
+finalModel
+summary(finalModel)
+plot(finalModel$fit)
