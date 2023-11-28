@@ -85,6 +85,7 @@ fitBestModel <- function(optResult,
   bestParams <- tune::select_best(optResult[[2]], metric)
   finalSpec <- tune::finalize_model(model, bestParams)
 
+  #eval(parse(text = )) R에서 자동화에 자주 사용, text 변수를 호출해와서 실행
   finalModel <- finalSpec %>% fit(eval(parse(text = formula)), trainingData)
 
   finalFittedModel <-

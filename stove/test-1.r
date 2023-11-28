@@ -45,7 +45,7 @@ data_split <- split_tmp[[3]] #whole data with split info
 summary(data_train)
 
 rec <- stove::prepForCV(data = data_train, formula = formula, imputation =T, normalization = T, seed = seed)
-
+algo <- 'Logistic Regression'
 engine <- 'glmnet'
 mode <- 'classification'
 model <- parsnip::logistic_reg(
@@ -115,4 +115,24 @@ finalSpec
 finalModel <- finalSpec %>% fit(eval(parse(text = formula)), data_train)
 finalModel
 summary(finalModel)
-plot(finalModel$fit)
+#plot(finalModel$fit)
+
+finalModel$spec
+
+lambda_min <- bestParams[[2]]
+
+coef(finalModel$fit, s = lambda_min)
+
+optResult[[1]]
+finalFittedModel <-
+  optResult[[1]] %>%
+  workflows::update_model(finalSpec) %>%
+  tune::last_fit(data_split)
+
+modelName = paste0(algo, "_", engine)
+
+finalFittedModel$splits
+finalFittedModel$.predictions[[1]]
+finalFittedModel$.predictions[[1]] <- finalFittedModel$.predictions[[1]] %>%
+    dplyr::mutate(model = modelName)
+finalFittedModel$.predictions[[1]]
