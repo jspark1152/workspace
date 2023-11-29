@@ -2,6 +2,7 @@ library(stove)
 library(datatoys) #공공 데이터셋 패키지
 library(dplyr)
 library(hardhat)
+library(ggplot2)
 
 set.seed(1234)
 
@@ -97,8 +98,9 @@ result
 summary(result)
 head(result)
 glimpse(result)
-
 result$splits[[1]][1]
+
+bayes_opt_result <- list(tunedWorkflow =tunedWorkflow, result = result)
 
 optResult <- list(tunedWorkflow = tunedWorkflow, result = result)
 optResult[[2]]
@@ -136,3 +138,58 @@ finalFittedModel$.predictions[[1]]
 finalFittedModel$.predictions[[1]] <- finalFittedModel$.predictions[[1]] %>%
     dplyr::mutate(model = modelName)
 finalFittedModel$.predictions[[1]]
+
+finalized <- list(finalModel =finalModel, finalFittedModel = finalFittedModel, bestParams = bestParams)
+finalized <- list(finalized = finalized, bayes_opt_result = bayes_opt_result)
+
+models_list <- list()
+models_list[[paste0(algo, '_', engine)]] <- finalized$finalized$finalFittedModel
+
+commnet = '
+roc_curve <- stove::rocCurve(
+  modelsList = models_list,
+  targetVar = target_var
+)
+
+roc_curve
+'
+
+modelsList <- models_list
+targetVar <- target_var
+
+modelsList
+length(modelsList)
+tmp <- do.call(rbind, modelsList)[[5]]
+tmp
+tmp <- tmp %>% do.call(rbind, .)
+tmp
+tmp <- tmp %>% dplyr::group_by(model)
+tmp
+
+#colors <- grDevices::colorRampPalette(c("#C70A80", "#FBCB0A", "#3EC70B", "#590696", "#37E2D5"))
+
+plot <- do.call(rbind, modelsList)[[5]] %>%
+  do.call(rbind, .) %>%
+  dplyr::group_by(model) %>%
+  yardstick::roc_curve(
+    truth = targetVar,
+    .pred_1,
+    event_level = 'second'
+  ) %>%
+  ggplot(
+    aes(
+      x = 1 - specificity,
+      y = sensitivity,
+      color = model
+    )
+  ) +
+  labs(
+    title = 'ROC curve',
+    x = 'False Positive Rate (1-Specificity)',
+    y = 'True Positive Rate (Sensitivity)'
+  ) +
+  geom_line(size = 1.1) +
+  geom_abline(slope = 1, intercept = 0, size = 0.5) +
+  scale_color_manual(values = colors(length(modelsList))) #values 값으로 컬러 팔렛 리스트
+
+plot
