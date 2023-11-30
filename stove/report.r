@@ -19,6 +19,7 @@ rocCurve <- function(modelsList, targetVar) {
     do.call(rbind, .) %>%
     dplyr::group_by(model)
 
+  #논리문으로서 tmp 컬럼 이름에 .pred_1이 있는 경우 1=TRUE 리턴
   if (".pred_1" %in% colnames(tmp)) {
     colors <- grDevices::colorRampPalette(c("#C70A80", "#FBCB0A", "#3EC70B", "#590696", "#37E2D5"))
 
@@ -92,6 +93,7 @@ confusionMatrix <- function(modelName, modelsList, targetVar) {
     scale_y_discrete(name = "Predicted Class") +
     geom_text(aes(label = Frequency), colour = "black") +
     scale_fill_continuous(high = "#E9BC09", low = "#F3E5AC")
+    #coord_fixed() 추가로 정방형 형태로 만들어주면 좋을 듯
 
   return(plot)
 }

@@ -166,7 +166,7 @@ tmp
 tmp <- tmp %>% dplyr::group_by(model)
 tmp
 
-#colors <- grDevices::colorRampPalette(c("#C70A80", "#FBCB0A", "#3EC70B", "#590696", "#37E2D5"))
+colors <- grDevices::colorRampPalette(c("#C70A80", "#FBCB0A", "#3EC70B", "#590696", "#37E2D5"))
 
 plot <- do.call(rbind, modelsList)[[5]] %>%
   do.call(rbind, .) %>%
@@ -190,6 +190,39 @@ plot <- do.call(rbind, modelsList)[[5]] %>%
   ) +
   geom_line(size = 1.1) +
   geom_abline(slope = 1, intercept = 0, size = 0.5) +
-  scale_color_manual(values = colors(length(modelsList))) #values 값으로 컬러 팔렛 리스트
+  scale_color_manual(values = colors(length(modelsList))) + #values 값으로 컬러 팔렛 리스트
+  coord_fixed() +
+  cowplot::theme_cowplot()
+
+plot
+
+names(models_list)
+model_name <- 'Logistic Regression_glmnet'
+modelName = model_name
+modelsList = models_list
+targetVar = target_var
+
+tmpDf <- modelsList[[modelName]] %>%
+  tune::collect_predictions() %>% #.pred tibble을 기준으로 튜닝
+  as.data.frame() %>% #데이터프레임으로 변환
+  dplyr::select(targetVar, .pred_class)
+  #Target변수 / 예측값만 Select하여 DF 구성
+
+confDf <- stats::xtabs(~ tmpDf$.pred_class + tmpDf[[targetVar]])
+
+input.matrix <- data.matrix(confDf)
+confusion <- as.data.frame(as.table(input.matrix))
+colnames(confusion)[1] <- 'y_pred'
+colnames(confusion)[2] <- 'actual_y'
+colnames(confusion)[3] <- 'Frequency'
+confusion
+
+plot <- ggplot(confusion, aes(x = actual_y, y = y_pred, fill = Frequency)) +
+  geom_tile() +
+  geom_text(aes(label = Frequency)) +
+  scale_x_discrete(name = 'Actual Class') +
+  scale_y_discrete(name = 'Predicted Class') +
+  geom_text(aes(label = Frequency), colour = 'black') +
+  scale_fill_continuous(high = '#E9BC09', low = '#F3E5AC')
 
 plot

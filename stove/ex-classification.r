@@ -314,3 +314,12 @@ roc_curve <- stove::rocCurve(
 )
 
 roc_curve
+
+names(models_list)
+model_name <- 'XGBoost_xgboost'
+cm <- stove::confusionMatrix(
+    modelName = model_name,
+    modelsList = models_list,
+    targetVar = target_var
+)
+cm
