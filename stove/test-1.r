@@ -226,3 +226,7 @@ plot <- ggplot(confusion, aes(x = actual_y, y = y_pred, fill = Frequency)) +
   scale_fill_continuous(high = '#E9BC09', low = '#F3E5AC')
 
 plot
+
+options(yardstick.event_level = 'second')
+evalMet <- stove::evalMetricsC(models_list, target_var)
+knitr::kable(evalMet)
