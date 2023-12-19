@@ -228,5 +228,37 @@ plot <- ggplot(confusion, aes(x = actual_y, y = y_pred, fill = Frequency)) +
 plot
 
 options(yardstick.event_level = 'second')
-evalMet <- stove::evalMetricsC(models_list, target_var)
-knitr::kable(evalMet)
+#evalMet <- stove::evalMetricsC(models_list, target_var)
+#knitr::kable(evalMet)
+
+table <- data.frame()
+custom_metrics <- yardstick::metric_set(
+  yardstick::accuracy,
+  yardstick::sens,
+  yardstick::spec,
+  yardstick::precision,
+  yardstick::f_meas,
+  yardstick::kap,
+  yardstick::mcc
+)
+custom_metrics
+length(modelsList)
+
+for (i in 1:length(modelsList)) {
+  tmp <- custom_metrics(
+    modelsList[[as.numeric(i)]] %>%
+      tune::collect_predictions(),
+      truth = targetVar,
+      estimate = .pred_class
+  ) %>%
+    dplyr::select(.estimate) %>%
+    data.table::transpose() %>%
+    dplyr::mutate(across(where(is.numeric), ~ round(.,3)))
+  tmp
+  table <- rbind(table, tmp)
+  rownames(table)[i] <- modelsList[[as.numeric(i)]][[5]][[1]]$model[1]
+}
+colnames(table) <- c("Accuracy", "Recall", "Specificity", "Precision", "F1-score", "Kappa", "MCC")
+
+table
+knitr::kable(table)

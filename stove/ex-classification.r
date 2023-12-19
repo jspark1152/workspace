@@ -323,3 +323,7 @@ cm <- stove::confusionMatrix(
     targetVar = target_var
 )
 cm
+
+options(yardstick.event_level = 'second')
+evalMet <- stove::evalMetricsC(models_list, target_var)
+knitr::kable(evalMet)
