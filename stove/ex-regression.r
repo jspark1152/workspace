@@ -1,6 +1,7 @@
 library(stove)
 library(datatoys)
 library(dplyr)
+library(ggplot2)
 set.seed(1234)
 cleaned_data <- datatoys::bloodTest
 cleaned_data <- cleaned_data %>%
@@ -71,9 +72,71 @@ rp
 evalMet <- stove::evalMetricsR(models_list, target_var)
 knitr::kable(evalMet)
 
-rmse_plot <- stove::plotRmseComparison(
-  tunedResultsList = tuned_results_list,
-  v = v,
-  iter = iter
-)
+
+tunedResultsList <- tuned_results_list
+v <- v
+iter <- iter
+
+combined_rmse_df <- data.frame()
+model_name <- names(tunedResultsList)
+
+for (i in seq_along(tunedResultsList)) {
+  iter_df_merge <- data.frame()
+  for (j in seq(v + 1, v + v * iter, by = 1)) {
+    # model's name
+    custom_name <- model_name[i] %>%
+      as.data.frame()
+    colnames(custom_name) <- "model"
+
+    # iteration
+    iteration <- j - v %>%
+      as.data.frame()
+    colnames(iteration) <- "iteration"
+
+    # rmse value
+    rmse_value <- tunedResultsList[[i]]$result$.metrics[[j]] %>%
+      dplyr::filter(.metric == "rmse") %>%
+      dplyr::pull(.estimate) %>%
+      as.data.frame()
+    colnames(rmse_value) <- "rmse_value"
+
+    tmp <- cbind(custom_name, iteration, rmse_value)
+    iter_df_merge <- rbind(iter_df_merge, tmp)
+  }
+  combined_rmse_df <- rbind(combined_rmse_df, iter_df_merge)
+}
+
+rmse_summary <- combined_rmse_df %>%
+    group_by(model) %>%
+    dplyr::summarize(
+      mean_rmse = mean(rmse_value),
+      rmse_se = sd(rmse_value) / sqrt(n())
+    ) %>%
+    mutate(
+      lower_bound = mean_rmse - 1.96 * rmse_se,
+      upper_bound = mean_rmse + 1.96 * rmse_se
+    )
+
+colors <- grDevices::colorRampPalette(c("#C70A80", "#FBCB0A", "#3EC70B", "#590696", "#37E2D5"))
+
+  rmse_plot <- ggplot(rmse_summary, aes(x = model, y = mean_rmse, 
+                      ymin = lower_bound, ymax = upper_bound, 
+                      color = model)) +
+    geom_point(size = 3) +
+    geom_errorbar(width = 0.2) +
+    scale_color_manual(values = colors(length(tunedResultsList))) +
+    labs(
+      title = "RMSE Comparison",
+      x = "Model",
+      y = "Mean RMSE"
+    ) +
+    cowplot::theme_cowplot() +
+    theme(
+      axis.title.x = element_blank(),
+      axis.text.x = element_blank(),
+      axis.ticks.x = element_blank(),
+      panel.grid.major.y = element_line(color = "grey", linetype = "solid"),
+      panel.grid.minor.y = element_line(color = "grey", linetype = "dashed")
+    )
+  
 rmse_plot
