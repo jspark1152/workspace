@@ -1,49 +1,63 @@
-from transformers import BertModel, BertTokenizer
+#pip install nlp==0.4.0
+#pip install transformers
+
+from transformers import BertForSequenceClassification, BertTokenizerFast, Trainer, TrainingArguments
+from nlp import load_dataset
 import torch
-#아래 코드로 모델 다운로드
-model = BertModel.from_pretrained('bert-base-uncased')
-#모델을 사전 학습하는데 사용된 토크나이저 다운로드
-tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+import numpy as np
 
-sentence = 'I love Paris'
-tokens = tokenizer.tokenize(sentence)
-print(tokens)
-#['i', 'love', 'paris']
-tokens = ['[CLS]'] + tokens + ['[SEP]']
-print(tokens)
-#['[CLS]', 'i', 'love', 'paris', '[SEP]']
+#[데이터셋과 모델 로딩하기]
+#pip install gdown
+#gdown https://drive.google.com/uc?id=11_M4ootuT7I1G0RlihcC0cA3Elqotlc-
 
-#토큰 길이를 7로 유지해야한다고 가정
-tokens = tokens + ['[PAD]'] + ['[PAD]']
-print(tokens)
-#['[CLS]', 'i', 'love', 'paris', '[SEP]', '[PAD]', '[PAD]']
+dataset = load_dataset('csv', data_files='./imdbs.csv', split='train')
+print(type(dataset))
+#nlp.arrow_dataset.Dataset
 
-#Attention Mask 생성
-attention_mask = [1 if i != '[PAD]' else 0 for i in tokens]
-print(attention_mask)
-#[1, 1, 1, 1, 1, 0, 0]
+#데이터셋 분할
+dataset = dataset.train_test_split(test_size = 0.3)
+print(dataset)
+'''
+{
+'train': Dataset(features: {'text': Value(dtype='string', id=None),
+'label': Value(dtype='int64', id=None)}, num_rows: 70), 
+'test': Dataset(features: {'text': Value(dtype='string', id=None), 
+'label': Value(dtype='int64', id=None)}, num_rows: 30)
+}
+'''
 
-#Token ID 부여
-token_ids = tokenizer.convert_tokens_to_ids(tokens)
-print(token_ids)
-#[101, 1045, 2293, 3000, 102, 0, 0]
+#학습/테스트 셋 생성
+train_set = dataset['train']
+test_set = dataset['test']
 
-#Tensor 변환
-token_ids = torch.tensor(token_ids).unsqueeze(0)
-attention_mask = torch.tensor(attention_mask).unsqueeze(0)
+#Pretrained Model 다운로드
+model = BertForSequenceClassification.from_pretrained('bert-base-uncased')
+tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 
-hidden_rep, cls_head = model(
-  input_ids=token_ids,
-  attention_mask=attention_mask,
-  return_dict = False   # this is needed to get a tensor as result
-)
-#model 표현 방식이 Transformer 버전 업데이트 됨에 따라 변경 됨
-print(hidden_rep.shape)
-#torch.Size([1, 7, 768])
-#이는 [batch_size, sequence_length, hidden_size]를 의미
-#hidden_rep[0][0] = [CLS]의 표현 벡터
-#hidden_rep[0][1] = I의 표현 벡터
+#[데이터셋 전처리]
+'''
+입력 문장 'I love Paris' 에 대해 토크나이저는 다음을 수행
+tokens = [ [CLS], I, love, Paris, [SEP] ]
+토큰의 고유 ID가 다음과 같다고 가정
+input_ids = [101, 1045, 2293, 3000, 102]
+Segment ID 생성, 이는 문장 구별 용도
+token_type_ids = [0, 0, 0, 0, 0]
+토큰 길이를 5라고 가정하고 Attention Mask 생성
+attention_mask = [1, 1, 1, 1, 1]
+'''
 
-#[CLS] 토큰의 표현 = cls_head
-print(cls_head.shape)
-#torch.Size([1, 768]), 이는 [batch_size, hidden_size]를 의미
+#이러한 과정은 토크나이저에 문장을 입력하면 수행
+print(tokenizer('I love Paris'))
+
+#여러 문장을 전달하여 패딩 작업도 자동으로 수행 가능
+#Padding을 True로 설정하고 Seq 최대 길이를 5로 설정
+print(tokenizer(['I love Paris', 'birds fly', 'snow fall'], padding = True, max_length = 5))
+
+def preprocess(data):
+    return tokenizer(data['text'], padding=True, truncation=True)
+
+#전처리 함수를 이용해 학습 및 테스트 셋을 전처리
+train_set = train_set.map(preprocess, batched=True, batch_size=len(train_set))
+#test_set = test_set.map(preprocess, batched=True, batch_size=len(test_set))
+
+#print(train_set)
