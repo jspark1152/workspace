@@ -1,120 +1,56 @@
-#pip install nlp==0.4.0
-#pip install transformers
-
-from transformers import BertForSequenceClassification, BertTokenizerFast, Trainer, TrainingArguments
-from nlp import load_dataset
+from transformers import BertForQuestionAnswering, BertTokenizer
 import torch
-import numpy as np
 
-#[데이터셋과 모델 로딩하기]
-#pip install gdown
-#gdown https://drive.google.com/uc?id=11_M4ootuT7I1G0RlihcC0cA3Elqotlc-
+#모델 : Stanford Q-A Dataset(SQUAD)를 기반으로 파인 튜닝된 모델
+#model_name = 'bert-large-uncased-whole-word-masking-fine-tuned-squad'
+#model_name에 이슈 > finetuned 로 수정
+model_name = 'bert-large-uncased-whole-word-masking-finetuned-squad'
 
-#데이터셋 로드
-dataset = load_dataset('csv', data_files='./imdbs.csv', split='train')
-print(type(dataset))
-#nlp.arrow_dataset.Dataset
+model = BertForQuestionAnswering.from_pretrained(model_name)
 
-#데이터셋 분할
-dataset = dataset.train_test_split(test_size = 0.3)
-print(dataset)
-'''
-{
-'train': Dataset(features: {'text': Value(dtype='string', id=None),
-'label': Value(dtype='int64', id=None)}, num_rows: 70), 
-'test': Dataset(features: {'text': Value(dtype='string', id=None), 
-'label': Value(dtype='int64', id=None)}, num_rows: 30)
-}
-'''
+#토크나이저 다운로드
+tokenizer = BertTokenizer.from_pretrained(model_name)
 
-#학습/테스트 셋 생성
-train_set = dataset['train']
-test_set = dataset['test']
+#[입력 전처리]
+question = "What is the immune system?"
+paragraph = "The immune system is a system of various biological structures and processes within an organism that protects against disease. To function properly, the immune system must detect a variety of substances known as pathogens, from viruses to parasites, and distinguish them from the healthy tissue of an organism."
+#question = "면역 체계는 무엇입니까?"
+#paragraph = "면역 체계는 질병으로부터 보호하는 유기체 내의 다양한 생물학적 구조와 과정의 시스템입니다. 제대로 기능하려면 면역 체계가 바이러스에서 기생충에 이르기까지 병원균으로 알려진 다양한 물질을 탐지하고 유기체의 건강한 조직과 구별해야 합니다."
 
-#Pretrained Model 다운로드
-model = BertForSequenceClassification.from_pretrained('bert-base-uncased')
-tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
+#질문-단락 순으로 쌍을 짓기 때문에 아래와 같이 설정
+question = '[CLS]' + question + '[SEP]'
+paragraph = paragraph + '[SEP]'
 
-#[데이터셋 전처리]
-'''
-입력 문장 'I love Paris' 에 대해 토크나이저는 다음을 수행
-tokens = [ [CLS], I, love, Paris, [SEP] ]
-토큰의 고유 ID가 다음과 같다고 가정
-input_ids = [101, 1045, 2293, 3000, 102]
-Segment ID 생성, 이는 문장 구별 용도
-token_type_ids = [0, 0, 0, 0, 0]
-토큰 길이를 5라고 가정하고 Attention Mask 생성
-attention_mask = [1, 1, 1, 1, 1]
-'''
+#토큰화
+question_tokens = tokenizer.tokenize(question)
+paragraph_tokens = tokenizer.tokenize(paragraph)
 
-#이러한 과정은 토크나이저에 문장을 입력하면 수행
-print(tokenizer('I love Paris'))
-'''
-{
-'input_ids': [101, 1045, 2293, 3000, 102], 
-'token_type_ids': [0, 0, 0, 0, 0], 
-'attention_mask': [1, 1, 1, 1, 1]
-}
-'''
+#질문 및 단락 토큰을 연걸하고 input_ids로 변환
+tokens = question_tokens + paragraph_tokens
+input_ids = tokenizer.convert_tokens_to_ids(tokens)
 
-#여러 문장을 전달하여 패딩 작업도 자동으로 수행 가능
-#Padding을 True로 설정하고 Seq 최대 길이를 5로 설정
-print(tokenizer(['I love Paris', 'birds fly', 'snow fall'], padding = True, max_length = 5))
-'''
-{
-'input_ids': [[101, 1045, 2293, 3000, 102], [101, 5055, 4875, 102, 0], [101, 4586, 2991, 102, 0]], 
-'token_type_ids': [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]], 
-'attention_mask': [[1, 1, 1, 1, 1], [1, 1, 1, 1, 0], [1, 1, 1, 1, 0]]
-}
-'''
+#segment_ids 정의 : 질문 = 0, 단락 = 1
+segment_ids = [0] * len(question_tokens) 
+segment_ids += [1] * len(paragraph_tokens)
 
-#전처리 함수를 정의
-def preprocess(data):
-    return tokenizer(data['text'], padding=True, truncation=True)
+#len(input_ids) 와 len(segment_ids) 가 같아야 함
+#print(len(input_ids), len(segment_ids))
 
-#전처리 함수를 이용해 학습 및 테스트 셋을 전처리
-train_set = train_set.map(preprocess, batched=True, batch_size=len(train_set))
-test_set = test_set.map(preprocess, batched=True, batch_size=len(test_set))
-#dill 라이브러리 버전 관련해서 이슈 발생
-#dill 패키지 버전 0.3.5.1 필요
-#진행 중 캐시 이슈 발생 -> 해당 경로에 캐시 파일 삭제로 해결
+#Tensor 변환
+input_ids = torch.tensor([input_ids])
+segment_ids = torch.tensor([segment_ids])
 
-#set_format 함수를 사용해 다음 코드와 같이 데이터 셋에 필요한 열과 형식 입력
-train_set.set_format('torch', columns=['input_ids', 'attention_mask', 'label'])
-test_set.set_format('torch', columns=['input_ids', 'attention_mask', 'label'])
+#[응답 얻기]
+#각 토큰에 대한 시작 점수와 끝 점수를 반환하는 모델에 데이터 입력
+output = model(input_ids, token_type_ids = segment_ids, return_dict=True)
+start_scores = output['start_logits']
+end_scores = output['end_logits']
 
-#[모델 학습]
-#Batch 및 Epoch 정의
-batch_size = 8
-epochs = 2
+#시작 점수가 가장 높은 토큰 인덱스 = start_index
+#긑 점수가 가장 높은 토큰 인덱스 = end_index
+start_index = torch.argmax(start_scores)
+end_index = torch.argmax(end_scores)
 
-#웜업 스텝 및 웨이트 디케이 정의
-warmup_steps = 500
-weight_decay = 0.01
-
-#학습 인수 정의
-training_args = TrainingArguments(
-    output_dir='./results',
-    num_train_epochs=epochs,
-    per_device_train_batch_size=batch_size,
-    per_device_eval_batch_size=batch_size,
-    warmup_steps=warmup_steps,
-    weight_decay=weight_decay,
-    #evaluate_during_training=True,
-    evaluation_strategy='epoch',
-    logging_dir='./logs',    
-)
-
-#트레이너 정의
-trainer = Trainer(
-    model=model,
-    args=training_args,
-    train_dataset=train_set,
-    eval_dataset=test_set
-)
-
-#학습 시작
-trainer.train()
-
-#모델 평가
-trainer.evaluate()
+#시작과 끝 범위를 출력
+#print(start_index, end_index)
+print(' '.join(tokens[start_index:end_index+1]))
